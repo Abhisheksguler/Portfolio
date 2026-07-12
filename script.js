@@ -1,161 +1,250 @@
-// ── Custom Cursor ────────────────────────
-const cursor = document.getElementById('cursor');
-const ring   = document.getElementById('cursor-ring');
-let mx = 0, my = 0, rx = 0, ry = 0;
-
-document.addEventListener('mousemove', e => {
-  mx = e.clientX; my = e.clientY;
-  cursor.style.left = mx + 'px';
-  cursor.style.top  = my + 'px';
-});
-function animateRing() {
-  rx += (mx - rx) * 0.14;
-  ry += (my - ry) * 0.14;
-  ring.style.left = rx + 'px';
-  ring.style.top  = ry + 'px';
-  requestAnimationFrame(animateRing);
-}
-animateRing();
-
-document.querySelectorAll('a, button, .sn-mod, .proj-card, .sn-card, .stat-card').forEach(el => {
-  el.addEventListener('mouseenter', () => {
-    cursor.style.transform = 'translate(-50%,-50%) scale(2.4)';
-    ring.style.width = '44px'; ring.style.height = '44px'; ring.style.opacity = '.25';
-  });
-  el.addEventListener('mouseleave', () => {
-    cursor.style.transform = 'translate(-50%,-50%) scale(1)';
-    ring.style.width = '26px'; ring.style.height = '26px'; ring.style.opacity = '1';
-  });
-});
-
-// ── Particle Canvas ──────────────────────
+// ══════════════════════════════════════════
+// ENTRY GATE — matrix rain, name type, roles pulse, cube sync
+// ══════════════════════════════════════════
 (function() {
-  const canvas = document.getElementById('particles');
-  const ctx    = canvas.getContext('2d');
-  let W, H, pts = [];
+  const gate    = document.getElementById('gate');
+  const canvas  = document.getElementById('matrix');
+  const ctx     = canvas.getContext('2d');
+  const gateBtn = document.getElementById('gateBtn');
+  const gateName= document.getElementById('gateName');
+  const roles   = document.querySelectorAll('.gate-roles .gr');
+  const site    = document.getElementById('site');
+  const body    = document.body;
 
+  // ── Matrix rain ──
+  const glyphs = '01{}[]<>/;:=+*#$%&アイウエオカキクケコ01GLIDEDJANGOREACTQARESTJWTSNPYITSM'.split('');
+  let W, H, cols, drops = [];
   function resize() {
     W = canvas.width  = window.innerWidth;
     H = canvas.height = window.innerHeight;
+    cols = Math.floor(W / 16);
+    drops = new Array(cols).fill(0).map(() => Math.random() * -40);
   }
   resize();
   window.addEventListener('resize', resize);
 
-  const N = 55;
-  for (let i = 0; i < N; i++) {
-    pts.push({
-      x: Math.random() * window.innerWidth,
-      y: Math.random() * window.innerHeight,
-      vx: (Math.random() - .5) * .35,
-      vy: (Math.random() - .5) * .35,
-      r: Math.random() * 1.4 + .4
-    });
-  }
-
-  function draw() {
-    ctx.clearRect(0, 0, W, H);
-    pts.forEach(p => {
-      p.x += p.vx; p.y += p.vy;
-      if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
-      if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
-
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(129,230,217,.55)';
-      ctx.fill();
-    });
-    // Connect nearby pts
-    for (let i = 0; i < pts.length; i++) {
-      for (let j = i+1; j < pts.length; j++) {
-        const dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y;
-        const d = Math.sqrt(dx*dx + dy*dy);
-        if (d < 130) {
-          ctx.beginPath();
-          ctx.moveTo(pts[i].x, pts[i].y);
-          ctx.lineTo(pts[j].x, pts[j].y);
-          ctx.strokeStyle = `rgba(129,230,217,${.12 * (1 - d/130)})`;
-          ctx.lineWidth = .6;
-          ctx.stroke();
-        }
-      }
+  const rainColors = ['#81e6d9', '#9f7aea', '#f6ad55'];
+  function drawMatrix() {
+    ctx.fillStyle = 'rgba(5,6,10,.16)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.font = '14px "IBM Plex Mono", monospace';
+    for (let i = 0; i < cols; i++) {
+      const ch = glyphs[Math.floor(Math.random() * glyphs.length)];
+      const x = i * 16;
+      const y = drops[i] * 18;
+      ctx.fillStyle = rainColors[i % 3];
+      ctx.globalAlpha = 0.75;
+      ctx.fillText(ch, x, y);
+      ctx.globalAlpha = 1;
+      if (y > H && Math.random() > 0.975) drops[i] = 0;
+      drops[i]++;
     }
-    requestAnimationFrame(draw);
   }
-  draw();
+  let matrixRAF = requestAnimationFrame(function loop() {
+    drawMatrix();
+    matrixRAF = requestAnimationFrame(loop);
+  });
+
+  // ── Gate name typing ──
+  const fullName = 'Abhishek S Guler';
+  let ni = 0;
+  (function typeName() {
+    gateName.innerHTML = fullName.slice(0, ni) + '<span class="gate-cursor">_</span>';
+    if (ni <= fullName.length) { ni++; setTimeout(typeName, 55); }
+  })();
+
+  // ── Roles pulse (synced loosely with cube faces) ──
+  let ri = 0;
+  setInterval(() => {
+    roles.forEach(r => r.classList.remove('pulse'));
+    roles[ri % roles.length].classList.add('pulse');
+    ri++;
+  }, 1000);
+  roles[0] && roles[0].classList.add('pulse');
+
+  // ── Enter portfolio ──
+  function enterSite() {
+    if (gate.classList.contains('gate-leaving')) return;
+    cancelAnimationFrame(matrixRAF);
+    gate.classList.add('gate-leaving');
+    body.classList.remove('gate-active');
+    setTimeout(() => {
+      gate.classList.add('gate-gone');
+      site.classList.add('site-in');
+      window.scrollTo(0, 0);
+      startMainSite();
+    }, 780);
+  }
+  gateBtn.addEventListener('click', enterSite);
+  gate.addEventListener('click', (e) => { if (e.target === gate) enterSite(); });
+  window.addEventListener('keydown', (e) => {
+    if ((e.key === 'Enter' || e.key === ' ') && !gate.classList.contains('gate-gone')) enterSite();
+  });
+
+  window.__enterSite = enterSite;
 })();
 
-// ── Typing Effect ────────────────────────
-const roles = [
-  'ServiceNow Developer',
-  'ITSM Engineer',
-  'Flow Designer Builder',
-  'REST Integration Dev',
-  'Change Mgmt Engineer',
-  'Python / Django Dev',
-  'Full Stack Engineer',
-  'CSA Aspirant',
-];
-let ri = 0, ci = 0, deleting = false;
-const typed = document.getElementById('typed');
+// ══════════════════════════════════════════
+// MAIN SITE — runs once the gate is dismissed
+// ══════════════════════════════════════════
+function startMainSite() {
+  if (window.__mainSiteStarted) return;
+  window.__mainSiteStarted = true;
 
-function typeLoop() {
-  const word = roles[ri];
-  if (!deleting) {
-    typed.textContent = word.slice(0, ++ci);
-    if (ci === word.length) { deleting = true; setTimeout(typeLoop, 2200); return; }
-  } else {
-    typed.textContent = word.slice(0, --ci);
-    if (ci === 0) { deleting = false; ri = (ri + 1) % roles.length; }
+  // ── Custom Cursor ──
+  const cursor = document.getElementById('cursor');
+  const ring   = document.getElementById('cursor-ring');
+  let mx = 0, my = 0, rx = 0, ry = 0;
+
+  document.addEventListener('mousemove', e => {
+    mx = e.clientX; my = e.clientY;
+    cursor.style.left = mx + 'px';
+    cursor.style.top  = my + 'px';
+  });
+  function animateRing() {
+    rx += (mx - rx) * 0.14;
+    ry += (my - ry) * 0.14;
+    ring.style.left = rx + 'px';
+    ring.style.top  = ry + 'px';
+    requestAnimationFrame(animateRing);
   }
-  setTimeout(typeLoop, deleting ? 32 : 68);
+  animateRing();
+
+  function bindHoverTargets() {
+    document.querySelectorAll('a, button, .sn-mod, .proj-card, .stat-card, .ptab, .pf-btn').forEach(el => {
+      el.addEventListener('mouseenter', () => {
+        cursor.style.transform = 'translate(-50%,-50%) scale(2.4)';
+        ring.style.width = '44px'; ring.style.height = '44px'; ring.style.opacity = '.25';
+      });
+      el.addEventListener('mouseleave', () => {
+        cursor.style.transform = 'translate(-50%,-50%) scale(1)';
+        ring.style.width = '26px'; ring.style.height = '26px'; ring.style.opacity = '1';
+      });
+    });
+  }
+  bindHoverTargets();
+
+  // ── Ambient particle canvas ──
+  (function() {
+    const canvas = document.getElementById('particles');
+    const ctx    = canvas.getContext('2d');
+    let W, H, pts = [];
+
+    function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+    resize();
+    window.addEventListener('resize', resize);
+
+    const N = 55;
+    for (let i = 0; i < N; i++) {
+      pts.push({ x: Math.random()*window.innerWidth, y: Math.random()*window.innerHeight,
+        vx:(Math.random()-.5)*.35, vy:(Math.random()-.5)*.35, r: Math.random()*1.4+.4 });
+    }
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      pts.forEach(p => {
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+        if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+        ctx.fillStyle = 'rgba(129,230,217,.55)'; ctx.fill();
+      });
+      for (let i=0;i<pts.length;i++) for (let j=i+1;j<pts.length;j++) {
+        const dx=pts[i].x-pts[j].x, dy=pts[i].y-pts[j].y, d=Math.sqrt(dx*dx+dy*dy);
+        if (d<130) {
+          ctx.beginPath(); ctx.moveTo(pts[i].x,pts[i].y); ctx.lineTo(pts[j].x,pts[j].y);
+          ctx.strokeStyle = `rgba(129,230,217,${.12*(1-d/130)})`; ctx.lineWidth=.6; ctx.stroke();
+        }
+      }
+      requestAnimationFrame(draw);
+    }
+    draw();
+  })();
+
+  // ── Typing effect (hero role) ──
+  const roles = [
+    'Software Engineer', 'Full-Stack Developer', 'QA Engineer',
+    'ServiceNow Developer', 'Django / React Dev', 'ITSM & Flow Designer',
+    'REST Integration Dev', 'CSA Aspirant',
+  ];
+  let ri = 0, ci = 0, deleting = false;
+  const typed = document.getElementById('typed');
+  function typeLoop() {
+    const word = roles[ri];
+    if (!deleting) {
+      typed.textContent = word.slice(0, ++ci);
+      if (ci === word.length) { deleting = true; setTimeout(typeLoop, 2000); return; }
+    } else {
+      typed.textContent = word.slice(0, --ci);
+      if (ci === 0) { deleting = false; ri = (ri+1) % roles.length; }
+    }
+    setTimeout(typeLoop, deleting ? 32 : 68);
+  }
+  typeLoop();
+
+  // ── Scroll Reveal ──
+  const revealObs = new IntersectionObserver(entries => {
+    entries.forEach((e, i) => {
+      if (e.isIntersecting) { setTimeout(() => e.target.classList.add('visible'), i*80); revealObs.unobserve(e.target); }
+    });
+  }, { threshold: 0.08 });
+  document.querySelectorAll('.reveal').forEach(el => revealObs.observe(el));
+
+  // ── Skill Bars ──
+  const barObs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.querySelectorAll('.sbar-fill').forEach(bar => { bar.style.width = (bar.dataset.w || 70) + '%'; });
+        barObs.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.15 });
+  document.querySelectorAll('.skill-col').forEach(el => barObs.observe(el));
+
+  // ── Active Nav ──
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks  = document.querySelectorAll('.nav-links a');
+  const navObs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        navLinks.forEach(a => { a.style.color = a.getAttribute('href') === '#'+e.target.id ? 'var(--teal)' : ''; });
+      }
+    });
+  }, { threshold: 0.35 });
+  sections.forEach(s => navObs.observe(s));
+
+  // ── Navbar scroll shadow ──
+  window.addEventListener('scroll', () => {
+    const nav = document.querySelector('.nav');
+    nav.style.boxShadow = scrollY > 40 ? '0 4px 30px rgba(0,0,0,.4)' : '';
+  });
+
+  // ── Pillar tabs (Expertise section) ──
+  const ptabs   = document.querySelectorAll('.ptab');
+  const ppanels = document.querySelectorAll('.pillar-panel');
+  ptabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      ptabs.forEach(t => { t.classList.remove('active'); t.setAttribute('aria-selected','false'); });
+      tab.classList.add('active'); tab.setAttribute('aria-selected','true');
+      ppanels.forEach(p => p.classList.toggle('active', p.dataset.panel === tab.dataset.tab));
+    });
+  });
+
+  // ── Project filter ──
+  const filterBtns = document.querySelectorAll('.pf-btn');
+  const projCards  = document.querySelectorAll('.proj-card');
+  filterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      filterBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const f = btn.dataset.filter;
+      projCards.forEach(card => {
+        const pillars = (card.dataset.pillar || '').split(' ');
+        card.classList.toggle('hide', f !== 'all' && !pillars.includes(f));
+      });
+    });
+  });
+
+  // ── Console ──
+  console.log('%c  Abhishek S Guler — Full-Stack · QA · ServiceNow  ', 'background:#81e6d9;color:#07090f;font-family:monospace;font-size:13px;padding:4px;border-radius:2px;');
+  console.log('%c  sgabhishek009@gmail.com  ', 'color:#81e6d9;font-family:monospace;font-size:11px;');
 }
-typeLoop();
-
-// ── Scroll Reveal ────────────────────────
-const revealObs = new IntersectionObserver(entries => {
-  entries.forEach((e, i) => {
-    if (e.isIntersecting) {
-      setTimeout(() => e.target.classList.add('visible'), i * 80);
-      revealObs.unobserve(e.target);
-    }
-  });
-}, { threshold: 0.08 });
-document.querySelectorAll('.reveal').forEach(el => revealObs.observe(el));
-
-// ── Skill Bars ───────────────────────────
-const barObs = new IntersectionObserver(entries => {
-  entries.forEach(e => {
-    if (e.isIntersecting) {
-      e.target.querySelectorAll('.sbar-fill').forEach(bar => {
-        bar.style.width = (bar.dataset.w || 70) + '%';
-      });
-      barObs.unobserve(e.target);
-    }
-  });
-}, { threshold: 0.15 });
-document.querySelectorAll('.skill-col').forEach(el => barObs.observe(el));
-
-// ── Active Nav ───────────────────────────
-const sections = document.querySelectorAll('section[id]');
-const navLinks  = document.querySelectorAll('.nav-links a');
-const navObs = new IntersectionObserver(entries => {
-  entries.forEach(e => {
-    if (e.isIntersecting) {
-      navLinks.forEach(a => {
-        a.style.color = a.getAttribute('href') === '#'+e.target.id ? 'var(--teal)' : '';
-      });
-    }
-  });
-}, { threshold: 0.35 });
-sections.forEach(s => navObs.observe(s));
-
-// ── Navbar scroll shadow ─────────────────
-window.addEventListener('scroll', () => {
-  const nav = document.querySelector('.nav');
-  nav.style.boxShadow = scrollY > 40 ? '0 4px 30px rgba(0,0,0,.4)' : '';
-});
-
-// ── Console ──────────────────────────────
-console.log('%c  Abhishek S Guler — ServiceNow Developer  ', 'background:#81e6d9;color:#07090f;font-family:monospace;font-size:13px;padding:4px;border-radius:2px;');
-console.log('%c  sgabhishek009@gmail.com  ', 'color:#81e6d9;font-family:monospace;font-size:11px;');
-console.log('%c  ServiceNow Micro-Certified · REST Integration · Change Mgmt · CSA Path  ', 'color:#9f7aea;font-family:monospace;font-size:10px;');
